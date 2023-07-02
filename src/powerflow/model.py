@@ -5,6 +5,7 @@ from enum import Enum
 
 from powerflow.component import Component
 
+
 class NodeType(Enum):
     PQ = 1
     PV = 2
@@ -44,9 +45,8 @@ class Node:
 
 
 class Branch:
-    def __init__(self, name, type, node1: Node, node2: Node, Y=0+0j):
+    def __init__(self, name, node1: Node, node2: Node, Y=0+0j):
         self.name = name
-        self.type = type
         self.node1 = node1
         self.node2 = node2
         self.node1.connect(self)
@@ -80,7 +80,7 @@ class Model:
 
     def compose(self, profile: Profile):
         self.profile = profile
-        self.componentManager = ComponentManager()
+        self.componentManager = ComponentManager(self)
         self.componentManager.parseProfile(self.profile)
 
     def addNodes(self, *anodes):
@@ -94,31 +94,44 @@ class Model:
                     return None
             self.branches.append(branch)
 
-    def findNodeByName(self, name):
+    def findNodeByName(self, name) -> Node:
         for node in self.nodes:
             if node.name == name:
                 return node
-        return None
-
-    def findBranchByName(self, name):
-        for branch in self.branches:
-            if branch.name == name:
-                return branch
         node = Node(name, NodeType.PQ)
         self.nodes.append(node)
         return node
 
+    def findBranchByName(self, name) -> Branch:
+        for branch in self.branches:
+            if branch.name == name:
+                return branch
+        return None
+
     def deriveYMatrix(self):
-        pass
-
-    def compose(self, profile):
-        pass
-
-
+        n = len(self.nodes)
+        Y = np.zeros((n, n), dtype=complex)
+        for branch in self.branches:
+            i = self.nodes.index(branch.node1)
+            j = self.nodes.index(branch.node2)
+            Y[i, j] = -branch.Y
+            Y[j, i] = -branch.Y
+            Y[i, i] += branch.Y
+            Y[j, j] += branch.Y
+        for node in self.nodes:
+            i = self.nodes.index(node)
+            Y[i, i] += node.Ys
+        #print Y
+        for i in range(n):
+            for j in range(n):
+                print(f'{Y[i,j]:.1f}', end='\t')
+            print()
+        return Y
 
 class ComponentManager:
-    def __init__(self):
+    def __init__(self, model: Model = None):
         self.components = []
+        self.model = model
 
     def parseProfile(self, profile):
         for i, v in enumerate(profile.data):
@@ -129,21 +142,19 @@ class ComponentManager:
             return
         ctype = strList[0]
         match ctype:
-
             case 'SYSBASE':
                 pass
             case 'SYSFREQ':
                 pass
             case 'THLINE':
-                self.addComponent(THLINE(strList))
+                self.addComponent(THLINE(strList)).apply(self.model)
                 pass
             case 'LINE':
                 pass
             case 'THTRFO':
-                self.addComponent(THTRFO(strList))
+                self.addComponent(THTRFO(strList)).apply(self.model)
                 pass
             case 'TRFO':
-                # TODO: add transformer
                 pass
             case 'THFORB2':
                 pass
@@ -154,10 +165,10 @@ class ComponentManager:
             case 'TAPCV':
                 pass
             case 'GENER':
-                self.addComponent(GENER(strList))
+                self.addComponent(GENER(strList)).apply(self.model)
                 pass
             case 'GENERCV':
-                self.addComponent(GENERCV(strList))
+                self.addComponent(GENERCV(strList)).apply(self.model)
                 pass
             case 'GENERDATA':
                 # gener=self.findComponentByName(strList[1])
@@ -170,26 +181,27 @@ class ComponentManager:
                 # node.Vmin=float(strList[7])
                 pass
             case 'THLOAD':
-                self.addComponent(THLOAD(strList))
+                self.addComponent(THLOAD(strList)).apply(self.model)
                 pass
             case 'LOAD2':
-                # TODO: add load
                 pass
-            case 'THSLACK':
+            case 'THSlack':
                 gener: GENER = self.findComponentByName(strList[1])
-                node: Node = gener.node1
-                node.changeType(NodeType.SLACK)
-                node.theta = 0
+                node: Node = self.model.findNodeByName(gener.node1)
+                node.V = float(strList[2])
+                node.theta = float(strList[3])
+                node.changeType(NodeType.Slack)
                 pass
-            case 'SLACKPH':
-                # TODO: add slack
+            case 'SlackPH':
                 pass
             case 'THSHUNT':
-                self.addComponent(THSHUNT(strList))
+                self.addComponent(THSHUNT(strList)).apply(self.model)
                 pass
 
-    def addComponent(self, component):
+
+    def addComponent(self, component) -> Component:
         self.components.append(component)
+        return component
 
     def findComponentByName(self, name):
         for component in self.components:
@@ -227,7 +239,7 @@ class THTRFO(Component):
         self.node2 = strList[3]
         self.R = float(strList[4])
         self.X = float(strList[5])
-        self.k = float(strList[6])
+        self.k = float(strList[6])/100
         print(f'Parsing {self.name}...')
 
     def apply(self, model: Model):
@@ -302,4 +314,3 @@ class GENER(Component):
         node1.P += self.P
         node1.Q += self.Q
         node1.changeType(NodeType.PQ)
-
