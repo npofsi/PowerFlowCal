@@ -13,7 +13,7 @@ class NodeType(Enum):
 
 
 class Node:
-    def __init__(self, name, type, P=0, Q=0, V=0, Ys=0+0j, theta=0, canChangeType=True):
+    def __init__(self, name, type=NodeType.PQ, P=0, Q=0, V=0, Ys=0+0j, theta=0, canChangeType=True):
         self.name = name
         self.type = type
         self.canChangeType = canChangeType
@@ -121,12 +121,13 @@ class Model:
         for node in self.nodes:
             i = self.nodes.index(node)
             Y[i, i] += node.Ys
-        #print Y
+        # print Y
         for i in range(n):
             for j in range(n):
                 print(f'{Y[i,j]:.1f}', end='\t')
             print()
         return Y
+
 
 class ComponentManager:
     def __init__(self, model: Model = None):
@@ -197,7 +198,6 @@ class ComponentManager:
             case 'THSHUNT':
                 self.addComponent(THSHUNT(strList)).apply(self.model)
                 pass
-
 
     def addComponent(self, component) -> Component:
         self.components.append(component)
