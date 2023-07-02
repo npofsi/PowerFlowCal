@@ -34,7 +34,7 @@ class Node:
         return self.P + self.Q * 1j
 
     def changeType(self, type):
-        if not self.canChangeType:
+        if self.canChangeType:
             self.type = type
 
     def connect(self, branch):
@@ -54,7 +54,7 @@ class Branch:
         self.Y = Y
 
     def __str__(self) -> str:
-        return f'Branch {self.name}:\n\tNode1: {self.node1.name}\n\tNode2: {self.node2.name}\n\tR: {self.R}\n\tX: {self.X}\n\tB: {self.B}'
+        return f'Branch {self.name}:\n\tNode1: {self.node1.name}\n\tNode2: {self.node2.name}\n\tY: {self.Y}'
 
 
 class Profile:
@@ -128,6 +128,13 @@ class Model:
             print()
         return Y
 
+    def printTopology(self):
+        print('Nodes:')
+        for node in self.nodes:
+            print(node)
+        print('Branches:')
+        for branch in self.branches:
+            print(branch)
 
 class ComponentManager:
     def __init__(self, model: Model = None):
@@ -186,12 +193,14 @@ class ComponentManager:
                 pass
             case 'LOAD2':
                 pass
-            case 'THSlack':
+            case 'THSLACK':
+                print("Dealing with THSlack")
                 gener: GENER = self.findComponentByName(strList[1])
                 node: Node = self.model.findNodeByName(gener.node1)
                 node.V = float(strList[2])
                 node.theta = float(strList[3])
                 node.changeType(NodeType.Slack)
+                node.canChangeType = False
                 pass
             case 'SlackPH':
                 pass

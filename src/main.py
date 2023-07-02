@@ -13,7 +13,9 @@ if __name__ == '__main__':
 
     model.deriveYMatrix() #nxn matrix
 
-    
+    model.printTopology()
+
+
 
 
 
