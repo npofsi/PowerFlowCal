@@ -1,5 +1,4 @@
 import os
-from typing import Any
 import numpy as np
 from enum import Enum
 
@@ -12,8 +11,9 @@ class NodeType(Enum):
     Slack = 3
 
 
+
 class Node:
-    def __init__(self, name, type=NodeType.PQ, P=0, Q=0, V=0, Ys=0+0j, theta=0, canChangeType=True):
+    def __init__(self, name, type=NodeType.PQ, P=.0, Q=.0, V=1., Ys=.0+.0j, theta=0, canChangeType=True):
         self.name = name
         self.type = type
         self.canChangeType = canChangeType
@@ -41,7 +41,7 @@ class Node:
         self.connectedBranches.append(branch)
 
     def __str__(self) -> str:
-        return f'Node {self.name}:\n\tType: {self.type}\n\tP: {self.P}\n\tQ: {self.Q}\n\tV: {self.V}\n\ttheta: {self.theta}'
+        return f'\tNode {self.name}:\n\t\tType: {self.type}\n\t\tP: {self.P}\n\t\tQ: {self.Q}\n\t\tV: {self.V}\n\t\ttheta: {self.theta}'
 
 
 class Branch:
@@ -54,7 +54,7 @@ class Branch:
         self.Y = Y
 
     def __str__(self) -> str:
-        return f'Branch {self.name}:\n\tNode1: {self.node1.name}\n\tNode2: {self.node2.name}\n\tY: {self.Y}'
+        return f'\tBranch {self.name}:\n\t\tNode1: {self.node1.name}\n\t\tNode2: {self.node2.name}\n\t\tY: {self.Y}'
 
 
 class Profile:
@@ -109,6 +109,7 @@ class Model:
         return None
 
     def deriveYMatrix(self):
+        self.nodes.sort(key=lambda node: node.type.value)
         n = len(self.nodes)
         Y = np.zeros((n, n), dtype=complex)
         for branch in self.branches:
@@ -121,11 +122,13 @@ class Model:
         for node in self.nodes:
             i = self.nodes.index(node)
             Y[i, i] += node.Ys
-        # print Y
+        print('Y Matrix(.0f):')
         for i in range(n):
+            print(end='\t')
             for j in range(n):
-                print(f'{Y[i,j]:.1f}', end='\t')
+                print(f'{Y[i,j]:.0f}', end='\t')
             print()
+            
         return Y
 
     def printTopology(self):
