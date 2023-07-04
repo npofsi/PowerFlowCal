@@ -1,14 +1,16 @@
 import numpy as np
 import os
-from powerflow.cal import Newton
+import sys
+from powerflow.Newton_Cartesian import NewtonCartesian
+from powerflow.Newton_Polar import NewtonPolar
 from powerflow.model import Model, Profile, NodeType
 root = os.getcwd()
 
 
 if __name__ == '__main__':
-
-
-    profile = Profile(os.path.join(root, "tests\\IEEE-14.th"))
+    original_stdout = sys.stdout
+    sys.stdout = open('output.txt', 'w')
+    profile = Profile(os.path.join(root, "tests\\IEEE-30.th"))
     print(profile)
     model = Model()
     model.compose(profile)
@@ -19,6 +21,6 @@ if __name__ == '__main__':
 
     model.printTopology()
 
-    cal = Newton(model)
+    cal = NewtonCartesian(model)
 
     cal.solve()

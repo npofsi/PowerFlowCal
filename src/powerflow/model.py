@@ -3,7 +3,10 @@ import numpy as np
 from enum import Enum
 
 from powerflow.component import Component
+from powerflow.utils import P2C, P2Complex
 
+global Sb
+Sb=100
 
 class NodeType(Enum):
     PQ = 1
@@ -13,22 +16,27 @@ class NodeType(Enum):
 
 
 class Node:
-    def __init__(self, name, type=NodeType.PQ, P=.0, Q=.0, V=1., Ys=.0+.0j, theta=0, canChangeType=True):
+    def __init__(self, name, type=NodeType.PQ, P=.0, Q=.0, V=1.+0j, Ys=.0+.0j, theta=0., canChangeType=True):
         self.name = name
         self.type = type
         self.canChangeType = canChangeType
         self.P = P
         self.Q = Q
-        self.V = V
-        self.Pmin = 0
-        self.Pmax = 100
-        self.Qmin = 0
-        self.Qmax = 100
-        self.Vmin = 0
-        self.Vmax = 100
+        self.V = P2Complex(V, theta)
+        self.Pmin = -99999./Sb
+        self.Pmax = 99999./Sb
+        self.Qmin = -99999./Sb
+        self.Qmax = 99999./Sb
+        self.Vmin = 0.
+        self.Vmax = 100.
         self.Ys = Ys
-        self.theta = theta
         self.connectedBranches = []
+
+    def getTheta(self):
+        return np.angle(self.V)
+    
+    def setTheta(self, theta):
+        self.V = P2Complex(self.V, theta)
 
     def S(self):
         return self.P + self.Q * 1j
@@ -41,7 +49,7 @@ class Node:
         self.connectedBranches.append(branch)
 
     def __str__(self) -> str:
-        return f'\tNode {self.name}:\n\t\tType: {self.type}\n\t\tP: {self.P}\n\t\tQ: {self.Q}\n\t\tV: {self.V}\n\t\ttheta: {self.theta}'
+        return f'\tNode {self.name}:\n\t\tType: {self.type}\n\t\tP: {self.P} r[{self.Pmin}~{self.Pmax}]\n\t\tQ: {self.Q} r[{self.Qmin}~{self.Qmax}]\n\t\tV: {np.abs(self.V)} ({self.V}) r[{self.Vmin}~{self.Vmax}]\n\t\ttheta: {self.getTheta()}'
 
 
 class Branch:
@@ -52,6 +60,7 @@ class Branch:
         self.node1.connect(self)
         self.node2.connect(self)
         self.Y = Y
+        self.PFlow = 0+0j
 
     def __str__(self) -> str:
         return f'\tBranch {self.name}:\n\t\tNode1: {self.node1.name}\n\t\tNode2: {self.node2.name}\n\t\tY: {self.Y}'
@@ -64,7 +73,7 @@ class Profile:
         self.data = [' '.join(line.strip().split()).split(' ')
                      for line in self.data]
         # drop lines start with '*'
-        self.data = [line for line in self.data if line[0][0] != '*']
+        self.data = [line for line in self.data if not (len(line[0])==0 or line[0][0] == '*')]
 
     def __str__(self) -> str:
         result = ''
@@ -124,9 +133,9 @@ class Model:
             Y[i, i] += node.Ys
         print('Y Matrix(.0f):')
         for i in range(n):
-            print(end='\t')
+            print(f'{self.nodes[i].name}',end='\t')
             for j in range(n):
-                print(f'{Y[i,j]:.0f}', end='\t')
+                print(f'{Y[i,j]:f}', end='\t')
             print()
             
         return Y
@@ -182,14 +191,14 @@ class ComponentManager:
                 self.addComponent(GENERCV(strList)).apply(self.model)
                 pass
             case 'GENERDATA':
-                # gener=self.findComponentByName(strList[1])
-                # node=gener.node1
-                # node.Pmax=float(strList[2])
-                # node.Pmin=float(strList[3])
-                # node.Qmax=float(strList[4])
-                # node.Qmin=float(strList[5])
-                # node.Vmax=float(strList[6])
-                # node.Vmin=float(strList[7])
+                gener=self.findComponentByName(strList[1])
+                node=self.model.findNodeByName(gener.node1)
+                node.Pmax=float(strList[7])/Sb
+                node.Pmin=float(strList[8])/Sb
+                node.Qmax=float(strList[9])/Sb
+                node.Qmin=float(strList[10])/Sb
+                node.Vmax=float(strList[11])
+                node.Vmin=float(strList[12])
                 pass
             case 'THLOAD':
                 self.addComponent(THLOAD(strList)).apply(self.model)
@@ -201,11 +210,11 @@ class ComponentManager:
                 gener: GENER = self.findComponentByName(strList[1])
                 node: Node = self.model.findNodeByName(gener.node1)
                 node.V = float(strList[2])
-                node.theta = float(strList[3])
+                node.setTheta(float(strList[3]))
                 node.changeType(NodeType.Slack)
                 node.canChangeType = False
                 pass
-            case 'SlackPH':
+            case 'SLACKPH':
                 pass
             case 'THSHUNT':
                 self.addComponent(THSHUNT(strList)).apply(self.model)
@@ -238,8 +247,8 @@ class THLINE(Component):
         node2: Node = model.findNodeByName(self.node2)
         branchLine = Branch(
             self.name, node1, node2, Y=1/(self.R + self.X*1j))
-        node1.Ys += self.nBf2 * 1j
-        node2.Ys += self.nBf2 * 1j
+        node1.Ys += -self.nBf2 * 1j
+        node2.Ys += -self.nBf2 * 1j
         model.addBranches(branchLine)
 
 
@@ -258,9 +267,9 @@ class THTRFO(Component):
         node1: Node = model.findNodeByName(self.node1)
         node2: Node = model.findNodeByName(self.node2)
         branchT = Branch(
-            self.name, node1, node2, Y=1 / ((self.R + self.X*1j) / self.k))
-        node1.Ys += (self.k - 1) / (self.k * (self.R + self.X*1j))
-        node2.Ys += (1 - self.k) / (self.k**2 * (self.R + self.X*1j))
+            self.name, node1, node2, Y=1 / (self.R + self.X*1j) / self.k)
+        node1.Ys +=  (self.k - 1) / (self.R + self.X*1j) / self.k
+        node2.Ys += (1 - self.k) / (self.R + self.X*1j) / self.k**2 
         model.addBranches(branchT)
 
 
@@ -289,8 +298,8 @@ class THLOAD(Component):
 
     def apply(self, model: Model):
         node1: Node = model.findNodeByName(self.node1)
-        node1.P += self.P
-        node1.Q += self.Q
+        node1.P -= self.P
+        node1.Q -= self.Q
 
 
 class GENERCV(Component):
@@ -298,13 +307,15 @@ class GENERCV(Component):
         self.type = strList[0]
         self.name = strList[1]
         self.node1 = strList[2]
-        self.P = float(strList[3])
-        self.Q = float(strList[4])
+        self.P = float(strList[3])/Sb
+        self.Q = float(strList[4])/Sb
         self.V = float(strList[5])
         self.state = int(strList[6])
         print(f'Parsing {self.name}...')
 
     def apply(self, model: Model):
+        if self.state == 0:
+            return
         node1: Node = model.findNodeByName(self.node1)
         node1.P += self.P
         node1.V = self.V
@@ -316,12 +327,14 @@ class GENER(Component):
         self.type = strList[0]
         self.name = strList[1]
         self.node1 = strList[2]
-        self.P = float(strList[3])
-        self.Q = float(strList[4])
+        self.P = float(strList[3])/Sb
+        self.Q = float(strList[4])/Sb
         self.state = int(strList[5])
         print(f'Parsing {self.name}...')
 
     def apply(self, model: Model):
+        if self.state == 0:
+            return
         node1: Node = model.findNodeByName(self.node1)
         node1.P += self.P
         node1.Q += self.Q

@@ -5,13 +5,14 @@
   "version": "0.2.0",
   "configurations": [
 
+
     {
       "name": "Main",
       "type": "python",
       "request": "launch",
 
       "program": "${workspaceFolder}/src/main.py",
-      "console": "externalTerminal",
+      "console": "integratedTerminal",
       "justMyCode": true
     }
   ]
