@@ -46,7 +46,7 @@ class NewtonPolar:
 
     def cal(self, node):
 
-        Y = self.model.deriveYMatrix()
+        Y = self.Y
         YY = Y.copy()
         ####### YY需要调整，根据PQ、PV、平衡顺序,先 PQ、再PV、再平衡，即前9个是pq，中间是4个pv，最后是一个平衡。node顺序和Y顺序都要改！！！！#######
         YR = np.real(YY)
