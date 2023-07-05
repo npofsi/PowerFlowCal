@@ -10,20 +10,24 @@ class NewtonCartesian:
         self.model = model
         self.Y = self.model.deriveYMatrix()
         self.NodeCount = len(self.model.nodes)
-        self.precision = 1E-4
+        self.precision = 1E-6
 
     def solve(self):
         print("Solving...")
+        self.initQ()
         flag = True
         while (flag):
             flag = self.iterate()
             # input(f"Press Enter to continue[{self.times}]...")
             pass
         self.applyPower()
+        self.calBranchesFlow()
+        print(f"Nodes:")
+        for node in self.model.nodes:
+            print(f"{node}")
+
 
     def iterate(self):
-        
-
         print(f"\nIterating {self.times}...")
         I = self.calInjectedCurrents()
         Delta = self.calDelta(I)
@@ -36,14 +40,38 @@ class NewtonCartesian:
         self.times += 1
         return flag
 
-    def applyPower(self):
+    def initQ(self):
+        Qmax = -99999
+        Qmin = 99999
+        for i, node in enumerate(self.model.nodes):
+            if node.type == NodeType.PQ:
+                Qmax = max(Qmax, node.Q)
+                Qmin = min(Qmin, node.Q)
         for i, node in enumerate(self.model.nodes):
             if node.type == NodeType.PV:
+                node.Q = (Qmax + Qmin)/2
+
+    def calBranchesFlow(self):
+        for i, branch in enumerate(self.model.branches):
+            branch.I = (branch.node1.V - branch.node2.V) * branch.Y
+            branch.Loss = np.abs(branch.I)**2 * branch.Y.conjugate()
+            self.model.loss += branch.Loss
+            branch.Flow = branch.node1.V * branch.I.conjugate()
+
+    def applyPower(self):
+        for i, node in enumerate(self.model.nodes):
+            S = 0.+0.j
+            if node.type == NodeType.PV:
                 for j, node2 in enumerate(self.model.nodes):
-                    if i != j:
-                        self.Y[i][j] = 0
-                        self.Y[j][i] = 0
-        
+                    S+= (node.V*node2.V)*self.Y[i][j]
+                node.Q = S.imag
+                node.V = P2Complex(node.oV, node.getTheta())
+            if node.type == NodeType.Slack:
+                for j, node2 in enumerate(self.model.nodes):
+                    S+= (node.V*node2.V)*self.Y[i][j]
+                node.P = S.real
+                node.Q = S.imag
+            
             
 
     def calInjectedCurrents(self):
@@ -140,13 +168,7 @@ class NewtonCartesian:
             e, f = self.model.nodes[i].V.real, self.model.nodes[i].V.imag
             if self.model.nodes[i].type == NodeType.PQ:
                 self.model.nodes[i].V = (e-DV[2*i])+(f-DV[2*i+1])*1j
-                # , self.model.nodes[i].theta = C2P(
-                #     e-DV[2*i], f-DV[2*i+1]*1j)
             elif self.model.nodes[i].type == NodeType.PV:
-                self.model.nodes[i].V = e+(f-DV[2*i+1])*1j
-                # self.model.nodes[i].V, self.model.nodes[i].theta = C2P(
-                #     e, f-DV[2*i+1]*1j)
+                self.model.nodes[i].V = (e-DV[2*i])+(f-DV[2*i+1])*1j
 
-        print(f"Nodes:")
-        for node in self.model.nodes:
-            print(f"{node}")
+        

@@ -8,7 +8,7 @@ class NewtonPolar:
         self.model = model
         self.Y = self.model.deriveYMatrix()
         self.NodeCount = len(self.model.nodes)
-        self.precision = 1E-4
+        self.precision = 1E-6
 
     def solve(self):
         NodeData = self.genNodeData()
@@ -17,6 +17,9 @@ class NewtonPolar:
           print(f"节点\t类型\tP有功\tQ无功\t~\t~\tV电压幅值\ttheta电压相位")
           print(f"{NodeData}")
         self.applyResult(NodeData)
+        self.applyPower()
+        self.calBranchesFlow()
+
 
     def genNodeData(self):
         # 节点	类型	发电机有功	发电机无功	负荷有功	负荷无功	电压幅值	电压相位
@@ -32,6 +35,30 @@ class NewtonPolar:
             self.node[i, 7] = self.model.nodes[i].getTheta()
         # self.node = np.flip(self.node, axis=0)
         return self.node
+
+
+
+    def calBranchesFlow(self):
+        for i, branch in enumerate(self.model.branches):
+            branch.I = (branch.node1.V - branch.node2.V) * branch.Y
+            branch.Loss = np.abs(branch.I)**2 * branch.Y.conjugate()
+            self.model.loss += branch.Loss
+            branch.Flow = branch.node1.V * branch.I.conjugate()
+
+    
+    def applyPower(self):
+        for i, node in enumerate(self.model.nodes):
+            S = 0.+0.j
+            if node.type == NodeType.PV:
+                for j, node2 in enumerate(self.model.nodes):
+                    S+= (node.V*node2.V)*self.Y[i][j]
+                node.Q = S.imag
+                node.V = P2Complex(node.oV, node.getTheta())
+            if node.type == NodeType.Slack:
+                for j, node2 in enumerate(self.model.nodes):
+                    S+= (node.V*node2.V)*self.Y[i][j]
+                node.P = S.real
+                node.Q = S.imag
 
     def applyResult(self, node):
         # self.node = np.flip(node, axis=0)

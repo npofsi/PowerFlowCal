@@ -23,6 +23,7 @@ class Node:
         self.P = P
         self.Q = Q
         self.V = P2Complex(V, theta)
+        self.oV = V
         self.Pmin = -99999./Sb
         self.Pmax = 99999./Sb
         self.Qmin = -99999./Sb
@@ -49,7 +50,7 @@ class Node:
         self.connectedBranches.append(branch)
 
     def __str__(self) -> str:
-        return f'\tNode {self.name}:\n\t\tType: {self.type}\n\t\tP: {self.P} r[{self.Pmin}~{self.Pmax}]\n\t\tQ: {self.Q} r[{self.Qmin}~{self.Qmax}]\n\t\tV: {np.abs(self.V)} ({self.V}) r[{self.Vmin}~{self.Vmax}]\n\t\ttheta: {self.getTheta()}'
+        return f'\tNode {self.name}:\n\t\tType: {self.type}\n\t\tP: {self.P} r[{self.Pmin}~{self.Pmax}]\n\t\tQ: {self.Q} r[{self.Qmin}~{self.Qmax}]\n\t\tV: {np.abs(self.V)} ({self.V}) r[{self.Vmin}~{self.Vmax}]\n\t\ttheta: {self.getTheta()}({self.getTheta()/np.pi*180}d)'
 
 
 class Branch:
@@ -60,7 +61,9 @@ class Branch:
         self.node1.connect(self)
         self.node2.connect(self)
         self.Y = Y
-        self.PFlow = 0+0j
+        self.I = 0+0j
+        self.Flow = 0+0j
+        self.Loss = 0+0j
 
     def __str__(self) -> str:
         return f'\tBranch {self.name}:\n\t\tNode1: {self.node1.name}\n\t\tNode2: {self.node2.name}\n\t\tY: {self.Y}'
@@ -84,6 +87,7 @@ class Profile:
 
 class Model:
     def __init__(self):
+        self.loss = 0.+0.j
         self.nodes = []
         self.branches = []
 
@@ -310,6 +314,7 @@ class GENERCV(Component):
         self.P = float(strList[3])/Sb
         self.Q = float(strList[4])/Sb
         self.V = float(strList[5])
+        self.oV = self.V
         self.state = int(strList[6])
         print(f'Parsing {self.name}...')
 
@@ -319,6 +324,7 @@ class GENERCV(Component):
         node1: Node = model.findNodeByName(self.node1)
         node1.P += self.P
         node1.V = self.V
+        node1.oV = self.oV
         node1.changeType(NodeType.PV)
 
 

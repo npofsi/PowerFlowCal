@@ -12,7 +12,7 @@
       "request": "launch",
 
       "program": "${workspaceFolder}/src/main.py",
-      "console": "integratedTerminal",
+      "console": "externalTerminal",
       "justMyCode": true
     }
   ]
