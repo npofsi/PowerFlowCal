@@ -40,7 +40,7 @@ class Report:
                 branch.node2.name,
                 '%.2f`%.2f'%(np.abs(branch.Y),np.angle(branch.Y)),
                 '%.2f`%.2f'%(np.abs(branch.Flow),np.angle(branch.Flow)),
-                '%.2f`%.2f'%(np.abs(branch.Loss),np.angle(branch.Loss)),
+                '%.3f`%.2f'%(np.abs(branch.Loss),np.angle(branch.Loss)),
                 '%.2f`%.2f'%(np.abs(branch.I),np.angle(branch.I))
             )]))
         print('\n'.join(table))

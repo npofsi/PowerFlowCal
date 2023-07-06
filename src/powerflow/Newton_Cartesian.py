@@ -54,7 +54,7 @@ class NewtonCartesian:
     def calBranchesFlow(self):
         for i, branch in enumerate(self.model.branches):
             branch.I = (branch.node1.V - branch.node2.V) * branch.Y
-            branch.Loss = np.abs(branch.I)**2 * branch.Y.conjugate()
+            branch.Loss = np.abs(branch.I)**2 / branch.Y.conjugate()
             self.model.loss += branch.Loss
             branch.Flow = branch.node1.V * branch.I.conjugate()
 

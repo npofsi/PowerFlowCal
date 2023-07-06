@@ -6,3 +6,9 @@
 - 牛顿方法 基于直角坐标，极坐标
 
 使用方法见 `main.py`
+
+安装依赖：
+
+```sh
+pip install numpy
+```
