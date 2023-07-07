@@ -6,13 +6,13 @@ from powerflow.component import Component
 from powerflow.utils import P2C, P2Complex
 
 global Sb
-Sb=100
+Sb = 100
+
 
 class NodeType(Enum):
     PQ = 1
     PV = 2
     Slack = 3
-
 
 
 class Node:
@@ -35,7 +35,7 @@ class Node:
 
     def getTheta(self):
         return np.angle(self.V)
-    
+
     def setTheta(self, theta):
         self.V = P2Complex(self.V, theta)
 
@@ -64,6 +64,7 @@ class Branch:
         self.I = 0+0j
         self.Flow = 0+0j
         self.Loss = 0+0j
+        self.Irated = 99999./Sb
 
     def __str__(self) -> str:
         return f'\tBranch {self.name}:\n\t\tNode1: {self.node1.name}\n\t\tNode2: {self.node2.name}\n\t\tY: {self.Y}'
@@ -76,7 +77,8 @@ class Profile:
         self.data = [' '.join(line.strip().split()).split(' ')
                      for line in self.data]
         # drop lines start with '*'
-        self.data = [line for line in self.data if not (len(line[0])==0 or line[0][0] == '*')]
+        self.data = [line for line in self.data if not (
+            len(line[0]) == 0 or line[0][0] == '*')]
 
     def __str__(self) -> str:
         result = ''
@@ -137,11 +139,11 @@ class Model:
             Y[i, i] += node.Ys
         print('Y Matrix(.0f):')
         for i in range(n):
-            print(f'{self.nodes[i].name}',end='\t')
+            print(f'{self.nodes[i].name}', end='\t')
             for j in range(n):
                 print(f'{Y[i,j]:f}', end='\t')
             print()
-            
+
         return Y
 
     def printTopology(self):
@@ -151,6 +153,7 @@ class Model:
         print('Branches:')
         for branch in self.branches:
             print(branch)
+
 
 class ComponentManager:
     def __init__(self, model: Model = None):
@@ -174,11 +177,13 @@ class ComponentManager:
                 self.addComponent(THLINE(strList)).apply(self.model)
                 pass
             case 'LINE':
+                self.addComponent(LINE(strList)).apply(self.model)
                 pass
             case 'THTRFO':
                 self.addComponent(THTRFO(strList)).apply(self.model)
                 pass
             case 'TRFO':
+                self.addComponent(TRFO(strList)).apply(self.model)
                 pass
             case 'THFORB2':
                 pass
@@ -195,19 +200,20 @@ class ComponentManager:
                 self.addComponent(GENERCV(strList)).apply(self.model)
                 pass
             case 'GENERDATA':
-                gener=self.findComponentByName(strList[1])
-                node=self.model.findNodeByName(gener.node1)
-                node.Pmax=float(strList[7])/Sb
-                node.Pmin=float(strList[8])/Sb
-                node.Qmax=float(strList[9])/Sb
-                node.Qmin=float(strList[10])/Sb
-                node.Vmax=float(strList[11])
-                node.Vmin=float(strList[12])
+                gener = self.findComponentByName(strList[1])
+                node = self.model.findNodeByName(gener.node1)
+                node.Pmax = float(strList[7])/Sb
+                node.Pmin = float(strList[8])/Sb
+                node.Qmax = float(strList[9])/Sb
+                node.Qmin = float(strList[10])/Sb
+                node.Vmax = float(strList[11])
+                node.Vmin = float(strList[12])
                 pass
             case 'THLOAD':
                 self.addComponent(THLOAD(strList)).apply(self.model)
                 pass
             case 'LOAD2':
+                self.addComponent(LOAD2(strList)).apply(self.model)
                 pass
             case 'THSLACK':
                 print("Dealing with THSlack")
@@ -219,6 +225,13 @@ class ComponentManager:
                 node.canChangeType = False
                 pass
             case 'SLACKPH':
+                print("Dealing with SlackPH")
+                gener: GENER = self.findComponentByName(strList[1])
+                node: Node = self.model.findNodeByName(gener.node1)
+                node.V = float(strList[4])
+                node.setTheta(float(strList[3]))
+                node.changeType(NodeType.Slack)
+                node.canChangeType = False
                 pass
             case 'THSHUNT':
                 self.addComponent(THSHUNT(strList)).apply(self.model)
@@ -244,6 +257,7 @@ class THLINE(Component):
         self.R = float(strList[4])
         self.X = float(strList[5])
         self.nBf2 = float(strList[6])
+
         print(f'Parsing {self.name}...')
 
     def apply(self, model: Model):
@@ -251,6 +265,33 @@ class THLINE(Component):
         node2: Node = model.findNodeByName(self.node2)
         branchLine = Branch(
             self.name, node1, node2, Y=1/(self.R + self.X*1j))
+        branchLine
+        node1.Ys += -self.nBf2 * 1j
+        node2.Ys += -self.nBf2 * 1j
+        model.addBranches(branchLine)
+
+
+class LINE(Component):
+    def __init__(self, strList):
+        self.type = strList[0]
+        self.name = strList[1]
+        self.node1 = strList[2]
+        self.node2 = strList[3]
+        self.R = float(strList[4])
+        self.X = float(strList[5])
+        self.nBf2 = float(strList[6])
+        self.Irated = float(strList[7])/Sb
+        self.state = (int(strList[8])+int(strList[9]))
+        print(f'Parsing {self.name}...')
+
+    def apply(self, model: Model):
+        if self.state == 0 or self.state == 1:
+            return
+        node1: Node = model.findNodeByName(self.node1)
+        node2: Node = model.findNodeByName(self.node2)
+        branchLine = Branch(
+            self.name, node1, node2, Y=1/(self.R + self.X*1j))
+        branchLine.Irated = self.Irated
         node1.Ys += -self.nBf2 * 1j
         node2.Ys += -self.nBf2 * 1j
         model.addBranches(branchLine)
@@ -272,8 +313,34 @@ class THTRFO(Component):
         node2: Node = model.findNodeByName(self.node2)
         branchT = Branch(
             self.name, node1, node2, Y=1 / (self.R + self.X*1j) / self.k)
-        node1.Ys +=  (self.k - 1) / (self.R + self.X*1j) / self.k
-        node2.Ys += (1 - self.k) / (self.R + self.X*1j) / self.k**2 
+        node1.Ys += (self.k - 1) / (self.R + self.X*1j) / self.k
+        node2.Ys += (1 - self.k) / (self.R + self.X*1j) / self.k**2
+        model.addBranches(branchT)
+
+
+class TRFO(Component):
+    def __init__(self, strList):
+        self.type = strList[0]
+        self.name = strList[1]
+        self.node1 = strList[2]
+        self.node2 = strList[3]
+        self.R = float(strList[4])
+        self.X = float(strList[5])
+        self.k = float(strList[6])/100
+        self.Irated = float(strList[7])/Sb
+        self.state = (int(strList[8])+int(strList[9]))
+        print(f'Parsing {self.name}...')
+
+    def apply(self, model: Model):
+        if self.state == 0 or self.state == 1:
+            return
+        node1: Node = model.findNodeByName(self.node1)
+        node2: Node = model.findNodeByName(self.node2)
+        branchT = Branch(
+            self.name, node1, node2, Y=1 / (self.R + self.X*1j) / self.k)
+        branchT.Irated = self.Irated
+        node1.Ys += (self.k - 1) / (self.R + self.X*1j) / self.k
+        node2.Ys += (1 - self.k) / (self.R + self.X*1j) / self.k**2
         model.addBranches(branchT)
 
 
@@ -301,6 +368,24 @@ class THLOAD(Component):
         print(f'Parsing {self.name}...')
 
     def apply(self, model: Model):
+        node1: Node = model.findNodeByName(self.node1)
+        node1.P -= self.P
+        node1.Q -= self.Q
+
+
+class LOAD2(Component):
+    def __init__(self, strList):
+        self.type = strList[0]
+        self.name = strList[1]
+        self.node1 = strList[2]
+        self.P = float(strList[3])/Sb
+        self.Q = float(strList[4])/Sb
+        self.state = int(strList[10])
+        print(f'Parsing {self.name}...')
+
+    def apply(self, model: Model):
+        if self.state == 0:
+            return
         node1: Node = model.findNodeByName(self.node1)
         node1.P -= self.P
         node1.Q -= self.Q

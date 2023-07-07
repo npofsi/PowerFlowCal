@@ -32,7 +32,7 @@ class Report:
 
     def listBranches(self):
         table=[]
-        print(f"Branchesfrom\tto\tY\t\tFlow\t\tLoss\t\tI")
+        print(f"Branchesfrom\tto\tY\t\tFlow\t\tLoss\t\tI\t\tIrated")
         for i, branch in enumerate(self.model.branches):
             table.append('\t'.join([str(value) for value in (
                 branch.name,
@@ -41,7 +41,8 @@ class Report:
                 '%.2f`%.2f'%(np.abs(branch.Y),np.angle(branch.Y)),
                 '%.2f`%.2f'%(np.abs(branch.Flow),np.angle(branch.Flow)),
                 '%.3f`%.2f'%(np.abs(branch.Loss),np.angle(branch.Loss)),
-                '%.2f`%.2f'%(np.abs(branch.I),np.angle(branch.I))
+                '%.2f`%.2f'%(np.abs(branch.I),np.angle(branch.I)),
+                '%.2f'%branch.Irated
             )]))
         print('\n'.join(table))
         print()
