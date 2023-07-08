@@ -12,3 +12,5 @@
 ```sh
 pip install numpy
 ```
+
+[Repo](https://github.com/npofsi/PowerFlowCal)

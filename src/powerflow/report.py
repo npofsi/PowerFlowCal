@@ -3,10 +3,12 @@ import numpy as np
 from powerflow.model import Model, NodeType
 from powerflow.utils import C2P, P2C, P2Complex
 
+#报告类，用于输出结果
 class Report:
     def __init__(self, model: Model) -> None:
         self.model = model
-        
+    
+    #输出模型节点信息
     def listNodes(self):
         table=[]
         print(f"Nodes\ttype\t\tP\tQ\tV\t\ttheta\tSd\t\tSg\t\tPmax\tPmin\tQmax\tQmin\tVmax\tVmin")
@@ -31,7 +33,7 @@ class Report:
         print('\n'.join(table))
         print()
             
-
+    #输出模型支路信息
     def listBranches(self):
         table=[]
         print(f"Branchesfrom\tto\tY\t\tFlow\t\tLoss\t\tI\t\tIrated")
@@ -49,5 +51,6 @@ class Report:
         print('\n'.join(table))
         print()
 
+    #输出模型总损耗
     def showTotalLoss(self):
         print(f"Total Loss: {self.model.loss}[{'%.2f`%.2f'%(np.abs(self.model.loss),np.angle(self.model.loss))}]")

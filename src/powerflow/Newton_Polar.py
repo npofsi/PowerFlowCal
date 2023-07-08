@@ -2,14 +2,15 @@ import numpy as np
 from powerflow.model import Model, NodeType
 from powerflow.utils import C2P, P2C, P2Complex
 
-
+#牛顿迭代法，极坐标法
 class NewtonPolar:
     def __init__(self, model: Model):
         self.model = model
-        self.Y = self.model.deriveYMatrix()
-        self.NodeCount = len(self.model.nodes)
-        self.precision = 1E-6
+        self.Y = self.model.deriveYMatrix() #节点导纳矩阵
+        self.NodeCount = len(self.model.nodes) #节点数量
+        self.precision = 1E-6 #迭代精度
 
+    #调用计算函数，并求解额外信息
     def solve(self):
         NodeData = self.genNodeData()
         NodeData = self.cal(NodeData)
@@ -20,10 +21,11 @@ class NewtonPolar:
         self.applyPower()
         self.calBranchesFlow()
 
-
+    #生成计算函数所需使用的节点信息列表
     def genNodeData(self):
         # 节点	类型	发电机有功	发电机无功	负荷有功	负荷无功	电压幅值	电压相位
         self.node = np.zeros((self.NodeCount, 8))
+        #遍历节点
         for i in range(self.NodeCount):
             self.node[i, 0] = i+1
             self.node[i, 1] = 4 - self.model.nodes[i].type.value
@@ -37,7 +39,7 @@ class NewtonPolar:
         return self.node
 
 
-
+    #计算支路电流，损耗，功率
     def calBranchesFlow(self):
         for i, branch in enumerate(self.model.branches):
             branch.I = (branch.node1.V - branch.node2.V) * branch.Y
@@ -45,7 +47,7 @@ class NewtonPolar:
             self.model.loss += branch.Loss
             branch.Flow = branch.node1.V * branch.I.conjugate()
 
-    
+    #计算节点缺失的功率
     def applyPower(self):
         for i, node in enumerate(self.model.nodes):
             S = 0.+0.j
@@ -60,6 +62,7 @@ class NewtonPolar:
                 node.P = S.real
                 node.Q = S.imag
 
+    #将计算结果应用到输入的模型上
     def applyResult(self, node):
         # self.node = np.flip(node, axis=0)
         for i in range(self.NodeCount):
@@ -71,8 +74,8 @@ class NewtonPolar:
         for node in self.model.nodes:
             print(f"{node}")
 
+    #计算迭代函数
     def cal(self, node):
-
         Y = self.Y
         YY = Y.copy()
         ####### YY需要调整，根据PQ、PV、平衡顺序,先 PQ、再PV、再平衡，即前9个是pq，中间是4个pv，最后是一个平衡。node顺序和Y顺序都要改！！！！#######

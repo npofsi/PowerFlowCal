@@ -1,5 +1,7 @@
 import numpy as np
 
+#工具函数，处理复数和相量之间的转换
+
 
 def P2C(V, theta):
     return V * np.exp(theta * 1j).real, V * np.exp(theta * 1j).imag

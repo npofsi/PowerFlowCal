@@ -1,4 +1,4 @@
-*
+*号后面可以写注释
 THTRFO  TR8     BUS-6     BUS-5     0.000000       0.252020      93.2
 THTRFO  TR9     BUS-7     BUS-4     0.000000       0.209120      97.8
 THTRFO  TR11    BUS-9     BUS-4     0.000000       0.556180      96.9
@@ -35,7 +35,7 @@ THLOAD  L11     BUS-14     0.149000       0.050000
 THLOAD  L12     BUS-7      0.000000       0.000000
 *
 GENERCV  GEN2     BUS-2     40.00000        0.000000          1.045000     1 
-GENERCV  GEN3     BUS-3     0.000000        0.000000          1.010000     1
+GENERCV  GEN3     BUS-3     0.000000        0.000000          1.010000     0
 GENERCV  GEN4     BUS-6     0.000000        0.000000          1.070000     1 
 GENERCV  GEN5     BUS-8     0.000000        0.000000          1.090000     1
 GENER    GEN1     BUS-1     0.000000       0.000000     1 
