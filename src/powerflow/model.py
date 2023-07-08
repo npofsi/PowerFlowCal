@@ -21,7 +21,11 @@ class Node:
         self.type = type
         self.canChangeType = canChangeType
         self.P = P
+        self.Pg = P
+        self.Pd = 0.
         self.Q = Q
+        self.Qg = Q
+        self.Qd = 0.
         self.V = P2Complex(V, theta)
         self.oV = V
         self.Pmin = -99999./Sb
@@ -48,6 +52,23 @@ class Node:
 
     def connect(self, branch):
         self.connectedBranches.append(branch)
+
+    def calSg(self):
+        if self.type == NodeType.PQ:
+            return 0 + 0 * 1j
+        FlowSum=0+0j
+        for branch in self.connectedBranches:
+            if branch.node1 == self:
+                FlowSum += branch.Flow
+            elif branch.node2 == self:
+                FlowSum -= branch.Flow
+        self.Pg = FlowSum.real
+        self.Pg += self.Pd + self.P
+        if self.type == NodeType.Slack:
+            return self.P + self.Q * 1j
+        self.Qg += self.Qd + self.Q
+        return self.Pg + self.Qg * 1j
+
 
     def __str__(self) -> str:
         return f'\tNode {self.name}:\n\t\tType: {self.type}\n\t\tP: {self.P} r[{self.Pmin}~{self.Pmax}]\n\t\tQ: {self.Q} r[{self.Qmin}~{self.Qmax}]\n\t\tV: {np.abs(self.V)} ({self.V}) r[{self.Vmin}~{self.Vmax}]\n\t\ttheta: {self.getTheta()}({self.getTheta()/np.pi*180}d)'
@@ -371,6 +392,8 @@ class THLOAD(Component):
         node1: Node = model.findNodeByName(self.node1)
         node1.P -= self.P
         node1.Q -= self.Q
+        node1.Pd += self.P
+        node1.Qd += self.Q
 
 
 class LOAD2(Component):
@@ -389,6 +412,8 @@ class LOAD2(Component):
         node1: Node = model.findNodeByName(self.node1)
         node1.P -= self.P
         node1.Q -= self.Q
+        node1.Pd += self.P
+        node1.Qd += self.Q
 
 
 class GENERCV(Component):
@@ -408,6 +433,7 @@ class GENERCV(Component):
             return
         node1: Node = model.findNodeByName(self.node1)
         node1.P += self.P
+        node1.Pg += self.P
         node1.V = self.V
         node1.oV = self.oV
         node1.changeType(NodeType.PV)
@@ -428,5 +454,7 @@ class GENER(Component):
             return
         node1: Node = model.findNodeByName(self.node1)
         node1.P += self.P
+        node1.Pg += self.P
         node1.Q += self.Q
+        node1.Qg += self.Q
         node1.changeType(NodeType.PQ)

@@ -9,7 +9,7 @@ class Report:
         
     def listNodes(self):
         table=[]
-        print(f"Nodes\ttype\t\tP\tQ\tV\t\ttheta\tPmax\tPmin\tQmax\tQmin\tVmax\tVmin")
+        print(f"Nodes\ttype\t\tP\tQ\tV\t\ttheta\tSg\t\tPmax\tPmin\tQmax\tQmin\tVmax\tVmin")
         for i, node in enumerate(self.model.nodes):
             table.append('\t'.join([str(value) for value in (
                 node.name,
@@ -18,6 +18,7 @@ class Report:
                 '%.2f'%node.Q,
                 '%.2f`%.2f'%(np.abs(node.V),np.angle(node.V)),
                 '%.2f'%node.getTheta(),
+                '%.2f+%.2fj'%(node.calSg().real,node.calSg().imag),
                 node.Pmax,
                 node.Pmin,
                 node.Qmax,
