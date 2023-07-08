@@ -56,17 +56,18 @@ class Node:
     def calSg(self):
         if self.type == NodeType.PQ:
             return 0 + 0 * 1j
-        FlowSum=0+0j
+
+        Flow = 0 + 0 * 1j
         for branch in self.connectedBranches:
             if branch.node1 == self:
-                FlowSum += branch.Flow
-            elif branch.node2 == self:
-                FlowSum -= branch.Flow
-        self.Pg = FlowSum.real
-        self.Pg += self.Pd + self.P
-        if self.type == NodeType.Slack:
-            return self.P + self.Q * 1j
-        self.Qg += self.Qd + self.Q
+                Flow += branch.Flow
+            else:
+                Flow -= branch.Flow
+
+        self.Pg = self.Pd + self.P + Flow.real
+        # if self.type == NodeType.Slack:
+        #     return self.P + self.Q * 1j
+        self.Qg = self.Qd + self.Q + Flow.imag
         return self.Pg + self.Qg * 1j
 
 
